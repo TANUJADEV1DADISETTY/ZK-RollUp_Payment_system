@@ -1,0 +1,51 @@
+version: '3.8'
+services:
+  hardhat:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: npm run node # I should add this script to package.json
+    ports:
+      - "8545:8545"
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zkrollup
+    ports:
+      - "5432:5432"
+
+  deployer:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "npm install && npx hardhat run scripts/deploy.js --network localhost"
+    depends_on:
+      - hardhat
+
+  backend:
+    build: ./backend
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=zkrollup
+      - DB_PORT=5432
+      - RPC_URL=http://hardhat:8545
+    ports:
+      - "3001:3001"
+    depends_on:
+      - deployer
+      - postgres
+    command: sh -c "npm run start"
+
+  flutter:
+    build: ./flutter_app
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
